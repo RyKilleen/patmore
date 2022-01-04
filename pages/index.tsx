@@ -54,18 +54,43 @@ const StyledThumb = styled(Switch.Thumb, {
 });
 
 
+type CategoryDicitonary = Dictionary<[Item, ...Item[]]>
+type CategoryTuple = [string, [Item, ...Item[]]]
+const sortCatTuples = (a: CategoryTuple, b: CategoryTuple) => {
+  const aCat = a[0];
+  const bCat = b[0]
+  if (aCat < bCat) {
+    return -1
+  } else if (
+    aCat > bCat ) {
+      return 1
+    } else {
+      return 0
+    }
+}
+const itemsByCategories = (items: CategoryDicitonary) => {
+  return Object.entries(items).sort(sortCatTuples)
+}
 
 const Home = ({ items }: PageProps) => {
 
-  // const {data, error} = useSWR()
+  const updateStatus = async (id: number, needed: boolean) => {
+    await fetch('/api/update-item', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body : JSON.stringify({id, needed})
+    })
+  }
     
-  const categories = Object.entries(items).map(([category, items]) => <Category category={category}><Collapsible.Content>
+  const categories = itemsByCategories(items).map(([category, items]) => <Category key={category} category={category}><Collapsible.Content>
     {JSON.stringify(items)}
     <hr />
     
      {items.map(item => <>
      <label htmlFor={`${item.id}`}>{item.name}</label>
-     <StyledSwitch id={`${item.id}`} defaultChecked={item.needed} >
+     <StyledSwitch id={`${item.id}`} defaultChecked={item.needed} onCheckedChange={(needed) => updateStatus(item.id, needed) } >
         <StyledThumb />
      </StyledSwitch>
      </>)}

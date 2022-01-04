@@ -2,20 +2,17 @@
 import { PrismaClient } from '@prisma/client'
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-type Data = {
-  name: string
-}
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse
 ) {
   const { id, needed } = req.body
 
 
   const prisma = new PrismaClient()
 
-  await prisma.item.update({
+  const results = await prisma.item.update({
     where: {
       id
     },
@@ -23,5 +20,7 @@ export default async function handler(
       needed
     }
   })
+
+  res.status(200).send(results)
 
 }
