@@ -1,13 +1,13 @@
 import type { GetStaticProps } from 'next'
 import Head from 'next/head'
-import { Item, Prisma, PrismaClient } from '@prisma/client'
-import groupBy from 'lodash/groupBy'
+import { Item } from '@prisma/client'
 import * as Collapsible from '@radix-ui/react-collapsible';
 import * as Switch from '@radix-ui/react-switch';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dictionary } from 'lodash';
 import { styled } from '@stitches/react';
 import { getItems } from './api/items';
+import Fuse from 'fuse.js'
 
 
 type PageProps = {
@@ -56,6 +56,12 @@ const StyledThumb = styled(Switch.Thumb, {
 
 type CategoryDicitonary = Dictionary<[Item, ...Item[]]>
 type CategoryTuple = [string, [Item, ...Item[]]]
+type CategoryData = {
+  category: string;
+  items: [Item, ...Item[]];
+}
+
+
 const sortCatTuples = (a: CategoryTuple, b: CategoryTuple) => {
   const aCat = a[0];
   const bCat = b[0]
@@ -68,8 +74,8 @@ const sortCatTuples = (a: CategoryTuple, b: CategoryTuple) => {
       return 0
     }
 }
-const itemsByCategories = (items: CategoryDicitonary) => {
-  return Object.entries(items).sort(sortCatTuples)
+const itemsByCategories = (items: CategoryDicitonary):CategoryData[] => {
+  return Object.entries(items).sort(sortCatTuples).map(([category, items]) => ({category, items}))
 }
 
 const Home = ({ items }: PageProps) => {
@@ -83,18 +89,32 @@ const Home = ({ items }: PageProps) => {
       body : JSON.stringify({id, needed})
     })
   }
-    
-  const categories = itemsByCategories(items).map(([category, items]) => <Category key={category} category={category}><Collapsible.Content>
-    {JSON.stringify(items)}
-    <hr />
-    
-     {items.map(item => <>
-     <label htmlFor={`${item.id}`}>{item.name}</label>
-     <StyledSwitch id={`${item.id}`} defaultChecked={item.needed} onCheckedChange={(needed) => updateStatus(item.id, needed) } >
-        <StyledThumb />
-     </StyledSwitch>
-     </>)}
-  </Collapsible.Content></Category>)
+
+  const [searchText, setSearchText] = useState('')
+  const [searchResults, setSearchResults] = useState<Fuse.FuseResult<CategoryData>[]>([])
+  const data = itemsByCategories(items)
+  const fuse = useMemo(() => new Fuse(data, {keys: ['category', 'items.name']}), [data])
+
+  useEffect(() =>{
+    const results = fuse.search(searchText)
+    console.log(results)
+    setSearchResults(results)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ searchText, setSearchResults])
+
+  const useSearchResults = searchText.length > 0 && searchResults
+  const source = useSearchResults ? searchResults.map(res => res.item) : data
+  const categoryElems = source.map(({category, items}) => <Category key={category} category={category}><Collapsible.Content>
+
+
+  
+   {items.map(item => <>
+   <label htmlFor={`${item.id}`}>{item.name}</label>
+   <StyledSwitch id={`${item.id}`} defaultChecked={item.needed} onCheckedChange={(needed) => updateStatus(item.id, needed) } >
+      <StyledThumb />
+   </StyledSwitch>
+   </>)}
+</Collapsible.Content></Category>)
   return (
     <div>
       <Head>
@@ -105,7 +125,8 @@ const Home = ({ items }: PageProps) => {
 
       <main>
 
-        <code>{categories}</code>
+        <input type="search" value={searchText} onChange={(e) => setSearchText(e.target.value)}></input>
+        <code>{categoryElems}</code>
 
 
       </main>
