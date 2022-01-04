@@ -7,17 +7,17 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { id, needed } = req.body
+  const { item } = req.body
 
 
   const prisma = new PrismaClient()
 
   const results = await prisma.item.update({
     where: {
-      id
+      id: item.id
     },
     data: {
-      needed
+      ...item
     }
   })
 
