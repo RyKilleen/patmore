@@ -83,7 +83,18 @@ const sortCatTuples = (a: CategoryTuple, b: CategoryTuple) => {
 const itemsByCategories = (items: CategoryDicitonary): CategoryData[] => {
   return Object.entries(items)
     .sort(sortCatTuples)
-    .map(([category, items]) => ({ category, items }));
+    .map(([category, items]) => {
+      const sortedItems = items.sort((itemA, itemB) => {
+        if (itemA.name < itemB.name) {
+          return -1;
+        } else if (itemA.name > itemB.name) {
+          return 1;
+        } else {
+          return 0;
+        }
+      })
+      return { category, items }
+    });
 };
 
 const STORES = Object.keys(StoreType) as StoreType[];
@@ -120,7 +131,7 @@ const ItemContainer = ({
 }: {
   item: Item;
   onCheckedChange: (item: Item, needed?: boolean | undefined) => Promise<void>;
-  onUpdateStore: (item: Item, store: StoreType ) => Promise<void>;
+  onUpdateStore: (item: Item, store: StoreType ) => void;
 }) => {
   return (
     <div style={{ display: "flex" }}>

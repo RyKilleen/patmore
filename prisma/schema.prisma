@@ -27,7 +27,7 @@ enum StoreType {
 
 model Item {
   id       Int         @id @default(autoincrement())
-  name     String?
+  name     String      @default("")
   needed   Boolean     @default(false)
   category Category    @default(Food)
   stores   StoreType[]
