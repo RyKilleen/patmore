@@ -1,10 +1,8 @@
 import type { GetStaticProps } from "next";
 import Head from "next/head";
 import { Item, StoreType } from "@prisma/client";
-import * as Collapsible from "@radix-ui/react-collapsible";
-import * as Switch from "@radix-ui/react-switch";
+import { Content as CollapsibleContent } from "@radix-ui/react-collapsible";
 import { useEffect, useMemo, useState } from "react";
-import { Dictionary, filter } from "lodash";
 import { styled } from "@stitches/react";
 import groupBy from "lodash/groupBy";
 import intersection from "lodash/intersection";
@@ -12,61 +10,15 @@ import intersection from "lodash/intersection";
 import Fuse from "fuse.js";
 import useSWR from "swr";
 import { getItems } from "./api/items";
+import { Switch, Thumb } from "../components/switch";
+import { CollapsableGroup } from "../components/collapsable-group";
+import { Tag } from "../components/tag";
 
 const groupItemsByCategory = (items: Item[]) => groupBy(items, "category");
 type PageProps = {
   items: Item[];
 };
 
-const Category = ({
-  category,
-  children,
-}: {
-  category: string;
-  children?: any;
-}) => {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <Collapsible.Root open={open} onOpenChange={setOpen}>
-      <h2>
-        {category} <Collapsible.Trigger>{open ? "-" : "+"}</Collapsible.Trigger>
-      </h2>
-      {children}
-    </Collapsible.Root>
-  );
-};
-
-const StyledSwitch = styled(Switch.Root, {
-  $$checkedColor: "black",
-  $$backgroundColor: "grey",
-
-  all: "unset",
-  width: 42,
-  height: 25,
-  backgroundColor: "$$backgroundColor",
-  borderRadius: "9999px",
-  position: "relative",
-  boxShadow: `0 2px 10px grey`,
-  WebkitTapHighlightColor: "rgba(0, 0, 0, 0)",
-  "&:focus": { boxShadow: `0 0 0 2px black` },
-  '&[data-state="checked"]': { backgroundColor: "$$checkedColor" },
-});
-
-const StyledThumb = styled(Switch.Thumb, {
-  display: "block",
-  width: 21,
-  height: 21,
-  backgroundColor: "white",
-  borderRadius: "9999px",
-  boxShadow: `0 2px 2px grey`,
-  transition: "transform 100ms",
-  transform: "translateX(2px)",
-  willChange: "transform",
-  '&[data-state="checked"]': { transform: "translateX(19px)" },
-});
-
-type CategoryDicitonary = Dictionary<[Item, ...Item[]]>;
 type CategoryTuple = [string, [Item, ...Item[]]];
 type CategoryData = {
   category: string;
@@ -89,7 +41,7 @@ const sortItems = (items: Item[]): CategoryData[] => {
   return Object.entries(itemsByCategory)
     .sort(sortCatTuples)
     .map(([category, items]) => {
-      const sortedItems = items.sort((itemA, itemB) => {
+      items.sort((itemA, itemB) => {
         if (itemA.name < itemB.name) {
           return -1;
         } else if (itemA.name > itemB.name) {
@@ -104,27 +56,9 @@ const sortItems = (items: Item[]): CategoryData[] => {
 
 const STORES = Object.keys(StoreType) as StoreType[];
 
-const StoreButton = styled("button", {
-  all: "unset",
-  padding: "6px",
-  border: "1px solid black",
-  borderRadius: "8px",
-  variants: {
-    selected: {
-      true: {
-        color: "white",
-        background: "black",
-      },
-      false: {
-        color: "black",
-        background: "#c3c3c3",
-      },
-    },
-  },
-});
 const ButtonContainer = styled("div", {
   display: "flex",
-  [`& ${StoreButton}`]: {
+  [`& ${Tag}`]: {
     marginRight: "4px",
   },
 });
@@ -140,24 +74,24 @@ const ItemContainer = ({
 }) => {
   return (
     <div style={{ display: "flex" }}>
-      <StyledSwitch
+      <Switch
         id={`${item.id}`}
         defaultChecked={item.needed}
         onCheckedChange={(needed) => onCheckedChange(item, needed)}
       >
-        <StyledThumb />
-      </StyledSwitch>
+        <Thumb />
+      </Switch>
       <div>
         <label htmlFor={`${item.id}`}>{item.name}</label>
         <ButtonContainer>
           {STORES.map((store) => (
-            <StoreButton
+            <Tag
               key={store}
               selected={item.stores.includes(store)}
               onClick={() => onUpdateStore(item, store)}
             >
               {store}
-            </StoreButton>
+            </Tag>
           ))}
         </ButtonContainer>
       </div>
@@ -250,8 +184,8 @@ const Home = ({ items }: PageProps) => {
   const sortedSource = sortItems(filteredSource);
 
   const categoryElems = sortedSource.map(({ category, items }) => (
-    <Category key={category} category={category}>
-      <Collapsible.Content>
+    <CollapsableGroup key={category} label={category}>
+      <CollapsibleContent>
         {items.map((item) => (
           <ItemContainer
             key={item.id}
@@ -260,8 +194,8 @@ const Home = ({ items }: PageProps) => {
             onUpdateStore={updateItemStores}
           />
         ))}
-      </Collapsible.Content>
-    </Category>
+      </CollapsibleContent>
+    </CollapsableGroup>
   ));
   return (
     <div>
@@ -284,13 +218,13 @@ const Home = ({ items }: PageProps) => {
           <div>
             <label>Filter By Store</label>
             {STORES.map((store) => (
-              <StoreButton
+              <Tag
                 key={store}
                 selected={storeFilters.includes(store)}
                 onClick={() => toggleStoreFilter(store)}
               >
                 {store}
-              </StoreButton>
+              </Tag>
             ))}
           </div>
         </div>
