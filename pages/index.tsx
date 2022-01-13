@@ -6,16 +6,15 @@ import * as Switch from "@radix-ui/react-switch";
 import { useEffect, useMemo, useState } from "react";
 import { Dictionary } from "lodash";
 import { styled } from "@stitches/react";
-import  groupBy  from 'lodash/groupBy'
+import groupBy from "lodash/groupBy";
 
 import Fuse from "fuse.js";
 import useSWR from "swr";
 import { getItems } from "./api/items";
 
-
-const groupItemsByCategory = (items : Item[]) => groupBy(items, 'category')
+const groupItemsByCategory = (items: Item[]) => groupBy(items, "category");
 type PageProps = {
-  items: Item[]
+  items: Item[];
 };
 
 const Category = ({
@@ -85,22 +84,21 @@ const sortCatTuples = (a: CategoryTuple, b: CategoryTuple) => {
   }
 };
 const sortItems = (items: Item[]): CategoryData[] => {
-
-     const itemsByCategory = groupItemsByCategory(items)
-    return Object.entries(itemsByCategory)
-      .sort(sortCatTuples)
-      .map(([category, items]) => {
-        const sortedItems = items.sort((itemA, itemB) => {
-          if (itemA.name < itemB.name) {
-            return -1;
-          } else if (itemA.name > itemB.name) {
-            return 1;
-          } else {
-            return 0;
-          }
-        })
-        return { category, items }
+  const itemsByCategory = groupItemsByCategory(items);
+  return Object.entries(itemsByCategory)
+    .sort(sortCatTuples)
+    .map(([category, items]) => {
+      const sortedItems = items.sort((itemA, itemB) => {
+        if (itemA.name < itemB.name) {
+          return -1;
+        } else if (itemA.name > itemB.name) {
+          return 1;
+        } else {
+          return 0;
+        }
       });
+      return { category, items };
+    });
 };
 
 const STORES = Object.keys(StoreType) as StoreType[];
@@ -137,7 +135,7 @@ const ItemContainer = ({
 }: {
   item: Item;
   onCheckedChange: (item: Item, needed?: boolean | undefined) => Promise<void>;
-  onUpdateStore: (item: Item, store: StoreType ) => void;
+  onUpdateStore: (item: Item, store: StoreType) => void;
 }) => {
   return (
     <div style={{ display: "flex" }}>
@@ -181,17 +179,16 @@ const Home = ({ items }: PageProps) => {
     error,
     mutate,
   } = useSWR<Item[]>("/api/items", fetcher, { fallbackData: items });
-  
+
   const mutateItems = (item: Item) => {
     if (!fetchedData) {
-      return
+      return;
     }
-    const newData = [...fetchedData.filter(i => i.id !== item.id), item]
-    mutate(newData, { revalidate: false})
-  }
+    const newData = [...fetchedData.filter((i) => i.id !== item.id), item];
+    mutate(newData, { revalidate: false });
+  };
   const updateItem = async (item: Item, needed?: boolean) => {
-   
-    mutateItems(item)
+    mutateItems(item);
 
     await fetch("/api/update-item", {
       method: "POST",
@@ -205,23 +202,23 @@ const Home = ({ items }: PageProps) => {
   const updateItemStores = (item: Item, store: StoreType) => {
     let newStores;
     if (item.stores.includes(store)) {
-      newStores = item.stores.filter((x) => x !== store)
+      newStores = item.stores.filter((x) => x !== store);
     } else {
-      newStores = [...item.stores, store]
+      newStores = [...item.stores, store];
     }
 
-    const newItem = {...item, stores: newStores}
+    const newItem = { ...item, stores: newStores };
     updateItem(newItem);
   };
 
   const [searchText, setSearchText] = useState("");
-  const [searchResults, setSearchResults] = useState<
-    Fuse.FuseResult<CategoryData>[]
-  >([]);
+  const [searchResults, setSearchResults] = useState<Fuse.FuseResult<Item>[]>(
+    []
+  );
 
-  const data = fetchedData ? sortItems(fetchedData) : [];
+  const data = useMemo(() => fetchedData ?? [], [fetchedData]);
   const fuse = useMemo(
-    () => new Fuse(data, { keys: ["category", "items.name"] }),
+    () => new Fuse(data, { keys: ["category", "name"] }),
     [data]
   );
 
@@ -233,11 +230,17 @@ const Home = ({ items }: PageProps) => {
 
   const useSearchResults = searchText.length > 0 && searchResults;
   const source = useSearchResults ? searchResults.map((res) => res.item) : data;
-  const categoryElems = source.map(({ category, items }) => (
+  const sortedSource = sortItems(source);
+  const categoryElems = sortedSource.map(({ category, items }) => (
     <Category key={category} category={category}>
       <Collapsible.Content>
         {items.map((item) => (
-          <ItemContainer key={item.id} item={item} onCheckedChange={updateItem} onUpdateStore={updateItemStores}/>
+          <ItemContainer
+            key={item.id}
+            item={item}
+            onCheckedChange={updateItem}
+            onUpdateStore={updateItemStores}
+          />
         ))}
       </Collapsible.Content>
     </Category>
