@@ -226,6 +226,9 @@ const Home = ({ items }: PageProps) => {
                 {store}
               </Tag>
             ))}
+            {storeFilters.length > 0 && (
+              <button onClick={() => setStoreFilters([])}>clear</button>
+            )}
           </div>
         </div>
         <hr />
