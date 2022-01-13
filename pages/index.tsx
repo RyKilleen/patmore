@@ -6,12 +6,16 @@ import * as Switch from "@radix-ui/react-switch";
 import { useEffect, useMemo, useState } from "react";
 import { Dictionary } from "lodash";
 import { styled } from "@stitches/react";
-import { getItems } from "./api/items";
+import  groupBy  from 'lodash/groupBy'
+
 import Fuse from "fuse.js";
 import useSWR from "swr";
+import { getItems } from "./api/items";
 
+
+const groupItemsByCategory = (items : Item[]) => groupBy(items, 'category')
 type PageProps = {
-  items: Dictionary<[Item, ...Item[]]>;
+  items: Item[]
 };
 
 const Category = ({
@@ -80,21 +84,23 @@ const sortCatTuples = (a: CategoryTuple, b: CategoryTuple) => {
     return 0;
   }
 };
-const itemsByCategories = (items: CategoryDicitonary): CategoryData[] => {
-  return Object.entries(items)
-    .sort(sortCatTuples)
-    .map(([category, items]) => {
-      const sortedItems = items.sort((itemA, itemB) => {
-        if (itemA.name < itemB.name) {
-          return -1;
-        } else if (itemA.name > itemB.name) {
-          return 1;
-        } else {
-          return 0;
-        }
-      })
-      return { category, items }
-    });
+const sortItems = (items: Item[]): CategoryData[] => {
+
+     const itemsByCategory = groupItemsByCategory(items)
+    return Object.entries(itemsByCategory)
+      .sort(sortCatTuples)
+      .map(([category, items]) => {
+        const sortedItems = items.sort((itemA, itemB) => {
+          if (itemA.name < itemB.name) {
+            return -1;
+          } else if (itemA.name > itemB.name) {
+            return 1;
+          } else {
+            return 0;
+          }
+        })
+        return { category, items }
+      });
 };
 
 const STORES = Object.keys(StoreType) as StoreType[];
@@ -166,24 +172,27 @@ const Home = ({ items }: PageProps) => {
   const {
     data: fetchedData,
     error,
-    mutate: mutateItems,
-  } = useSWR("/api/items", fetcher, { fallbackData: items });
+    mutate,
+  } = useSWR<Item[]>("/api/items", fetcher, { fallbackData: items });
   
-
+  const mutateItems = (item: Item) => {
+    if (!fetchedData) {
+      return
+    }
+    const newData = [...fetchedData.filter(i => i.id !== item.id), item]
+    mutate(newData, { revalidate: false})
+  }
   const updateItem = async (item: Item, needed?: boolean) => {
-    mutateItems(newData)
+   
+    mutateItems(item)
+
     await fetch("/api/update-item", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ item: { ...item, needed } }),
-    });
-
-    
-    const newData = {...fetchedData}
-    newData[item.category] = [...newData[item.category].filter((x:Item) => x.id !== item.id), item]
-    mutateItems(newData)
+    }).then(() => mutate());
   };
 
   const updateItemStores = (item: Item, store: StoreType) => {
@@ -195,7 +204,6 @@ const Home = ({ items }: PageProps) => {
     }
 
     const newItem = {...item, stores: newStores}
-    console.log(newItem)
     updateItem(newItem);
   };
 
@@ -203,7 +211,8 @@ const Home = ({ items }: PageProps) => {
   const [searchResults, setSearchResults] = useState<
     Fuse.FuseResult<CategoryData>[]
   >([]);
-  const data = itemsByCategories(fetchedData);
+
+  const data = fetchedData ? sortItems(fetchedData) : [];
   const fuse = useMemo(
     () => new Fuse(data, { keys: ["category", "items.name"] }),
     [data]
