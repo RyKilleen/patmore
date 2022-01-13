@@ -4,9 +4,10 @@ import { Item, StoreType } from "@prisma/client";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import * as Switch from "@radix-ui/react-switch";
 import { useEffect, useMemo, useState } from "react";
-import { Dictionary } from "lodash";
+import { Dictionary, filter } from "lodash";
 import { styled } from "@stitches/react";
 import groupBy from "lodash/groupBy";
+import intersection from "lodash/intersection";
 
 import Fuse from "fuse.js";
 import useSWR from "swr";
@@ -212,25 +213,42 @@ const Home = ({ items }: PageProps) => {
   };
 
   const [searchText, setSearchText] = useState("");
-  const [searchResults, setSearchResults] = useState<Fuse.FuseResult<Item>[]>(
-    []
-  );
+  const [searchResults, setSearchResults] = useState<Item[]>([]);
+  const [storeFilters, setStoreFilters] = useState<StoreType[]>([]);
 
+  const toggleStoreFilter = (store: StoreType) => {
+    if (storeFilters.includes(store)) {
+      const newVal = storeFilters.filter((s) => s !== store);
+      setStoreFilters(newVal);
+    } else {
+      setStoreFilters([...storeFilters, store]);
+    }
+  };
   const data = useMemo(() => fetchedData ?? [], [fetchedData]);
+
   const fuse = useMemo(
-    () => new Fuse(data, { keys: ["category", "name"] }),
+    () => new Fuse(data, { keys: ["category", "name", "stores"] }),
     [data]
   );
 
   useEffect(() => {
-    const results = fuse.search(searchText);
+    const results = fuse.search(searchText).map((res) => res.item);
     setSearchResults(results);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText, setSearchResults]);
 
   const useSearchResults = searchText.length > 0 && searchResults;
-  const source = useSearchResults ? searchResults.map((res) => res.item) : data;
-  const sortedSource = sortItems(source);
+  const source = useSearchResults ? searchResults : data;
+  const filteredSource =
+    storeFilters.length > 0
+      ? source.filter((item) => {
+          const matchesFilters =
+            intersection(item.stores, storeFilters).length > 0;
+          return matchesFilters;
+        })
+      : source;
+  const sortedSource = sortItems(filteredSource);
+
   const categoryElems = sortedSource.map(({ category, items }) => (
     <Category key={category} category={category}>
       <Collapsible.Content>
@@ -254,12 +272,30 @@ const Home = ({ items }: PageProps) => {
       </Head>
 
       <main>
-        <input
-          type="search"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-        ></input>
-        <code>{categoryElems}</code>
+        <div>
+          <label>
+            Search
+            <input
+              type="search"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            ></input>
+          </label>
+          <div>
+            <label>Filter By Store</label>
+            {STORES.map((store) => (
+              <StoreButton
+                key={store}
+                selected={storeFilters.includes(store)}
+                onClick={() => toggleStoreFilter(store)}
+              >
+                {store}
+              </StoreButton>
+            ))}
+          </div>
+        </div>
+        <hr />
+        <div>{categoryElems}</div>
       </main>
 
       <footer></footer>
