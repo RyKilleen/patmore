@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,25 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Category {
-  Food
-  Cleaning
-  Household
-  Dog
-  Other
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  Item Item[]
 }
 
-enum StoreType {
-  BigBox
-  Grocery
-  General
-
+model StoreType {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique
+  items             Item[]
+  StoreTypesOnItems StoreTypesOnItems[]
 }
 
 model Item {
-  id       Int         @id @default(autoincrement())
-  name     String
-  needed   Boolean     @default(false)
-  category Category    @default(Food)
-  stores   StoreType[]
+  id                Int                 @id @default(autoincrement())
+  name              String
+  needed            Boolean             @default(false)
+  category          Category            @relation(fields: [categoryId], references: [id])
+  categoryId        Int
+  stores            StoreType[]
+  StoreTypesOnItems StoreTypesOnItems[]
+}
+
+model StoreTypesOnItems {
+  item        Item      @relation(fields: [itemId], references: [id])
+  itemId      Int // relation scalar field (used in the `@relation` attribute above)
+  storeType   StoreType @relation(fields: [storeTypeId], references: [id])
+  storeTypeId Int // relation scalar field (used in the `@relation` attribute above)
+
+  @@id([itemId, storeTypeId])
 }
